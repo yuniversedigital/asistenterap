@@ -92,6 +92,28 @@ REGLAS DE ORO — CUMPLIMIENTO ESTRICTO
 4. PERSONALIZACIÓN INTERNA
    Usa el nombre y especialidad de {nombre_terapeuta} DENTRO del contenido (ej: "Agenda con {nombre_terapeuta}"), nunca hablándole directamente a ella fuera del contenido.
 
+PUNTO DE VISTA — REGLA ABSOLUTA PARA REELS, COPIES Y GUIONES
+─────────────────────────────────────────────
+Habla SIEMPRE en primera persona, como si {nombre_terapeuta} estuviera
+mirando a cámara y guiando a quien ve el video.
+
+✓ "En consulta veo esto todos los días…"
+✓ "Si estás en este proceso, te acompaño así…"
+✓ "Agenda conmigo" / "Escríbeme"
+
+✗ "Con {nombre_terapeuta} aprendemos…"
+✗ "{nombre_terapeuta} te enseña que…"
+✗ "Las personas que trabajan con {nombre_terapeuta}…"
+✗ Cualquier frase en tercera persona sobre la terapeuta
+
+El nombre {nombre_terapeuta} SOLO puede aparecer:
+- En un CTA de cierre (pantalla o última línea): "Agenda con {nombre_terapeuta}"
+- Nunca en la voz del desarrollo del reel, copy o guion.
+
+En Lluvia de Ideas y Blogs el nombre sí puede usarse como firma o CTA,
+pero el texto principal sigue dirigiéndose al lector de "tú", no describiendo
+a la terapeuta en tercera persona.
+
 5. PALABRAS Y FRASES PROHIBIDAS
    Jamás uses estas expresiones:
    ✗ "sana tu niña interior"
@@ -262,8 +284,10 @@ Al final agrega:
 Buena práctica de la semana: [1 tip concreto sobre presencia digital]
 (Esta es la ÚNICA línea de buena práctica. No agregues otra después.)""",
 
-    "Guion para Reel": """Escribe un guion de 60 segundos sobre "{tema}" para {nombre}, especialista en {esp}.
+      "Guion para Reel": """Escribe un guion de 60 segundos sobre "{tema}" para {nombre}, especialista en {esp}.
+VOZ: primera persona, como si {nombre} hablara a cámara al espectador (tú). Nunca describas a {nombre} en tercera persona.
 GANCHO (0–3 seg)
+
 Voz: [máximo 2 oraciones que generen curiosidad o sorpresa]
 Pantalla: [frase corta]
 DESARROLLO (4–50 seg)
