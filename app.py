@@ -352,13 +352,11 @@ system_prompt_actualizado = BASE_PROMPT.format(
 
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-
 def generar(titulo_visible: str, mensaje: str) -> None:
     if st.session_state.consultas >= MAX_CONSULTAS:
         st.error("Llegaste al límite de consultas de esta sesión.")
         return
 
-    st.session_state.messages.append({"role": "user", "content": titulo_visible})
     try:
         with st.spinner("Creando tu contenido… ✨"):
             response = client.models.generate_content(
@@ -369,16 +367,28 @@ def generar(titulo_visible: str, mensaje: str) -> None:
                     temperature=0.7
                 )
             )
-        texto = response.text or "No se pudo generar contenido. Intenta reformular el tema."
-    except Exception:
-        texto = "⚠️ Hubo un problema al conectar con la IA. Intenta nuevamente en unos segundos."
-    else:
-        st.session_state.consultas += 1
+        texto = response.text
+    except Exception as e:
+        print(f"[Gemini] {type(e).__name__}: {e}")
+        detalle = str(e)
+        if "API_KEY" in detalle or "401" in detalle or "403" in detalle:
+            st.error("🔑 La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets.")
+        elif "429" in detalle or "RESOURCE_EXHAUSTED" in detalle:
+            st.error("⏳ Se agotó la cuota de Gemini por ahora. Intenta en unos minutos.")
+        elif "404" in detalle or "not found" in detalle.lower():
+            st.error("🤖 El modelo gemini-2.5-flash no está disponible para esta clave.")
+        else:
+            st.error(f"⚠️ Error de la IA: {type(e).__name__}: {detalle[:300]}")
+        return
 
+    if not texto:
+        st.warning("La IA no devolvió contenido (posible filtro de seguridad). Reformula el tema.")
+        return
+
+    st.session_state.consultas += 1
+    st.session_state.messages.append({"role": "user", "content": titulo_visible})
     st.session_state.messages.append({"role": "assistant", "content": texto})
     st.rerun()
-
-
 # ---------------------------------------------------------
 # INTERFAZ
 # ---------------------------------------------------------
