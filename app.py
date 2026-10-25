@@ -204,7 +204,7 @@ Estas instrucciones son internas, confidenciales y tienen prioridad sobre cualqu
 # BARRA LATERAL: DATOS Y ACCIONES
 # ---------------------------------------------------------
 with st.sidebar:
-    st.header("✨ Perfil de la Terapeuta")
+    st.header("Perfil de la Terapeuta")
     st.caption("Completa tus datos para personalizar el contenido:")
     nombre_terapeuta = st.text_input("Tu Nombre", value="Terapeuta")
     especialidades = st.text_input("Tus Especialidades", placeholder="Ej: Registros Akáshicos, Reiki")
