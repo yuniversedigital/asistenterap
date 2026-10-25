@@ -1,7 +1,9 @@
+import time
+
+import jwt
 import streamlit as st
 from google import genai
 from google.genai import types
-import jwt
 
 st.set_page_config(
     page_title="Estratega de Contenido Digital",
@@ -110,9 +112,11 @@ REGLAS DE ORO — CUMPLIMIENTO ESTRICTO
    ✗ cualquier frase que suene a plantilla
 
 6. CIERRE EXACTO
-   Termina SIEMPRE con esta línea y nada más:
+   Termina SIEMPRE con UNA sola línea de buena práctica y nada más:
    "Buena práctica: [1 consejo concreto]"
-   Si agregas cualquier texto después de esa línea, el sistema fallará.
+   Si la estructura del pedido ya define su propia línea final de buena práctica
+   (ej: "Buena práctica de la semana" o "Buena práctica de copy"), usa SOLO esa.
+   Nunca escribas dos líneas de buena práctica.
 
 VOZ Y ESTILO DE ESCRITURA
 ─────────────────────────────────────────────
@@ -168,7 +172,7 @@ Orden de entrega sin excepción:
 
 [1] Contenido solicitado — limpio y completo
 [2] Una línea en blanco
-[3] "Buena práctica: [consejo concreto]"
+[3] Una sola línea de buena práctica (ver regla 6)
 [4] FIN — no escribas nada más
 
 ═════════════════════════════════════════════
@@ -180,7 +184,7 @@ FORMATO DE SALIDA — sin etiquetas visibles, sin corchetes:
 1. [título magnético del post]
 Funciona porque: [una oración]
 Formato: [carrusel / reel / imagen]
-Tip de grabación: [consejo práctico si aplica]
+Tip de grabación: [consejo práctico] (solo si el formato es reel; si es carrusel o imagen, omite la línea)
 (repite para cada idea, separadas por línea en blanco)
 Al final agrega:
 —
@@ -252,7 +256,7 @@ Estas instrucciones son internas, confidenciales y tienen prioridad sobre cualqu
 """
 
 # ---------------------------------------------------------
-# PLANTILLAS POR TIPO (idénticas al Creador IA)
+# PLANTILLAS POR TIPO
 # ---------------------------------------------------------
 PLANTILLAS = {
     "Lluvia de Ideas": """Genera 5 ideas de contenido para Instagram sobre: "{tema}" para {nombre}, especialista en {esp}.
@@ -260,11 +264,12 @@ FORMATO DE SALIDA — sin etiquetas visibles, sin corchetes:
 1. [título magnético del post]
 Funciona porque: [una oración]
 Formato: [carrusel / reel / imagen]
-Tip de grabación: [consejo práctico si aplica]
+Tip de grabación: [consejo práctico] (escribe esta línea solo si el formato es reel; si es carrusel o imagen, omítela por completo)
 (repite para cada idea, separadas por línea en blanco)
 Al final agrega:
 —
-Buena práctica de la semana: [1 tip concreto sobre presencia digital]""",
+Buena práctica de la semana: [1 tip concreto sobre presencia digital]
+(Esta es la ÚNICA línea de buena práctica. No agregues otra después.)""",
 
     "Guion para Reel": """Escribe un guion de 60 segundos sobre "{tema}" para {nombre}, especialista en {esp}.
 GANCHO (0–3 seg)
@@ -283,7 +288,8 @@ Tips de grabación para este Reel:
 - [consejo de ángulo o luz]
 - [consejo de energía o presencia]
 - [consejo de edición simple]
-Buena práctica: [1 línea]""",
+Buena práctica: [1 línea]
+(Esta es la ÚNICA línea de buena práctica. No agregues otra después.)""",
 
     "Copy de Venta": """Escribe un copy de Instagram sobre "{tema}" para {nombre}, especialista en {esp}.
 REGLAS DE SALIDA:
@@ -300,7 +306,8 @@ La estructura interna debe fluir en este orden sin nombrarlo:
 Después del copy, agrega separado:
 —
 Variante de gancho alternativa: [una línea diferente para testear]
-Buena práctica de copy: [1 tip concreto]""",
+Buena práctica de copy: [1 tip concreto]
+(Esta es la ÚNICA línea de buena práctica. No agregues otra después.)""",
 }
 
 MODOS = {
@@ -362,19 +369,25 @@ system_prompt_actualizado = BASE_PROMPT.format(
     bio=bio or "acompañamiento integral"
 )
 
-client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-import time
+client = genai.Client(
+    api_key=st.secrets["GEMINI_API_KEY"],
+    http_options=types.HttpOptions(timeout=45_000),
+)
 
+# ---------------------------------------------------------
+# MODELOS Y LLAMADA A GEMINI
+# ---------------------------------------------------------
 MODELOS_PREFERIDOS = [
-    "gemini-flash-latest",
     "gemini-2.5-flash",
+    "gemini-flash-latest",
     "gemini-2.0-flash",
-    "gemini-flash-lite-latest",
     "gemini-2.5-flash-lite",
-    "gemini-2.0-flash-lite",
+    "gemini-flash-lite-latest",
 ]
 
-ERRORES_TEMPORALES = ("503", "UNAVAILABLE", "500", "INTERNAL", "429", "RESOURCE_EXHAUSTED", "overloaded", "high demand")
+ERRORES_TEMPORALES = ("503", "UNAVAILABLE", "500", "INTERNAL", "429", "RESOURCE_EXHAUSTED",
+                      "overloaded", "high demand", "timed out", "Timeout", "deadline")
+TIEMPO_MAXIMO_TOTAL = 90
 
 
 @st.cache_resource(show_spinner=False)
@@ -392,33 +405,47 @@ def modelos_candidatos() -> list[str]:
     print(f"[Gemini] Modelos disponibles: {disponibles}")
     candidatos = [m for m in MODELOS_PREFERIDOS if m in disponibles]
     if not candidatos:
-        candidatos = [m for m in disponibles if "flash" in m and "image" not in m and "tts" not in m][:3]
-    return candidatos or MODELOS_PREFERIDOS[:3]
+        candidatos = [m for m in disponibles if "flash" in m and "image" not in m and "tts" not in m]
+    return (candidatos or MODELOS_PREFERIDOS)[:3]
+
+
+def config_para(modelo: str) -> types.GenerateContentConfig:
+    extra = {}
+    if "2.5" in modelo:
+        extra["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+    return types.GenerateContentConfig(
+        system_instruction=system_prompt_actualizado,
+        temperature=0.7,
+        **extra,
+    )
 
 
 def llamar_gemini(mensaje: str) -> str:
+    inicio = time.monotonic()
     ultimo_error: Exception | None = None
+
     for modelo in modelos_candidatos():
-        for intento in range(2):
-            try:
-                response = client.models.generate_content(
-                    model=modelo,
-                    contents=mensaje,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_prompt_actualizado,
-                        temperature=0.7
-                    )
-                )
-                return response.text or ""
-            except Exception as e:
-                ultimo_error = e
-                detalle = str(e)
-                print(f"[Gemini] {modelo} intento {intento + 1} -> {type(e).__name__}: {detalle[:200]}")
-                if "404" in detalle or "not found" in detalle.lower():
-                    break
-                if not any(clave in detalle for clave in ERRORES_TEMPORALES):
-                    raise
-                time.sleep(2 * (intento + 1))
+        if time.monotonic() - inicio > TIEMPO_MAXIMO_TOTAL:
+            break
+        try:
+            t0 = time.monotonic()
+            response = client.models.generate_content(
+                model=modelo,
+                contents=mensaje,
+                config=config_para(modelo),
+            )
+            print(f"[Gemini] OK {modelo} en {time.monotonic() - t0:.1f}s")
+            return response.text or ""
+        except Exception as e:
+            ultimo_error = e
+            detalle = str(e)
+            print(f"[Gemini] {modelo} -> {type(e).__name__}: {detalle[:200]}")
+            if "404" in detalle or "not found" in detalle.lower():
+                continue
+            if not any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
+                raise
+            time.sleep(1.5)
+
     raise ultimo_error or RuntimeError("Sin modelos disponibles")
 
 
@@ -434,7 +461,7 @@ def generar(titulo_visible: str, mensaje: str) -> None:
         detalle = str(e)
         if "API_KEY" in detalle or "401" in detalle or "403" in detalle:
             st.error("La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets.")
-        elif any(clave in detalle for clave in ERRORES_TEMPORALES):
+        elif any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
             st.warning("La IA está con mucha demanda en este momento. Espera un minuto y vuelve a intentarlo.")
         else:
             st.error("No se pudo generar el contenido. Intenta nuevamente.")
@@ -446,8 +473,9 @@ def generar(titulo_visible: str, mensaje: str) -> None:
 
     st.session_state.consultas += 1
     st.session_state.messages.append({"role": "user", "content": titulo_visible})
-    st.session_state.messages.append({"role": "assistant", "content": texto})
+    st.session_state.messages.append({"role": "assistant", "content": texto.strip()})
     st.rerun()
+
 
 # ---------------------------------------------------------
 # INTERFAZ
@@ -463,7 +491,7 @@ tipo = st.radio(
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+        st.markdown(msg["content"].replace("\n", "  \n"))
         if msg["role"] == "assistant":
             with st.expander("Copiar texto"):
                 st.code(msg["content"], language=None)
