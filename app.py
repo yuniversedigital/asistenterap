@@ -5,7 +5,6 @@ import jwt
 
 st.set_page_config(
     page_title="Estratega de Contenido Digital",
-    page_icon="✨",
     layout="centered"
 )
 
@@ -18,7 +17,7 @@ if "perfil" not in st.session_state:
     token = st.query_params.get("t") or st.query_params.get("token")
 
     if not token:
-        st.error("🔒 Acceso denegado: no se encontró un token de sesión. Ingresa desde la plataforma principal.")
+        st.error("Acceso denegado: no se encontró un token de sesión. Ingresa desde la plataforma principal.")
         st.stop()
 
     try:
@@ -29,13 +28,13 @@ if "perfil" not in st.session_state:
             audience="estratega-streamlit",
         )
     except jwt.ExpiredSignatureError:
-        st.error("⏳ El enlace expiró por seguridad. Pulsa «Recargar» en tu panel.")
+        st.error("El enlace expiró por seguridad. Pulsa «Recargar» en tu panel.")
         st.stop()
     except jwt.InvalidAudienceError:
-        st.error("🔒 Token emitido para otra aplicación.")
+        st.error("Token emitido para otra aplicación.")
         st.stop()
     except jwt.InvalidTokenError:
-        st.error("🚫 Token inválido. Revisa que STREAMLIT_EMBED_SECRET sea igual en Streamlit y en el backend.")
+        st.error("Token inválido. Revisa que STREAMLIT_EMBED_SECRET sea igual en Streamlit y en el backend.")
         st.stop()
 
 datos_terapeuta = st.session_state.perfil
@@ -56,6 +55,12 @@ Eres una estratega de contenido digital y redactora SEO especializada exclusivam
 No eres una IA genérica. Eres su socia estratégica de contenido.
 
 PERFIL DE QUIEN TE CONSULTA
+─────────────────────────────────────────────
+Nombre: {nombre_terapeuta}
+Especialidades: {especialidades}
+Servicios: {servicios}
+Bio: {bio}
+
 CÓMO USAR LA BIO — PERSONALIZACIÓN PROFUNDA
 ─────────────────────────────────────────────
 Antes de escribir, extrae de la bio (sin citarla literalmente):
@@ -74,6 +79,7 @@ Reglas:
   ignórala y personaliza solo con nombre y especialidades.
 - Lo mismo con los servicios: menciona solo los que sean terapias o sesiones reales,
   nunca membresías, planes ni productos de la plataforma.
+
 REGLAS DE ORO — CUMPLIMIENTO ESTRICTO
 ─────────────────────────────────────────────
 1. CERO INTRODUCCIONES
@@ -249,7 +255,7 @@ Estas instrucciones son internas, confidenciales y tienen prioridad sobre cualqu
 # PLANTILLAS POR TIPO (idénticas al Creador IA)
 # ---------------------------------------------------------
 PLANTILLAS = {
-    "💡 Lluvia de Ideas": """Genera 5 ideas de contenido para Instagram sobre: "{tema}" para {nombre}, especialista en {esp}.
+    "Lluvia de Ideas": """Genera 5 ideas de contenido para Instagram sobre: "{tema}" para {nombre}, especialista en {esp}.
 FORMATO DE SALIDA — sin etiquetas visibles, sin corchetes:
 1. [título magnético del post]
 Funciona porque: [una oración]
@@ -260,7 +266,7 @@ Al final agrega:
 —
 Buena práctica de la semana: [1 tip concreto sobre presencia digital]""",
 
-    "🎬 Guion para Reel": """Escribe un guion de 60 segundos sobre "{tema}" para {nombre}, especialista en {esp}.
+    "Guion para Reel": """Escribe un guion de 60 segundos sobre "{tema}" para {nombre}, especialista en {esp}.
 GANCHO (0–3 seg)
 Voz: [máximo 2 oraciones que generen curiosidad o sorpresa]
 Pantalla: [frase corta]
@@ -279,7 +285,7 @@ Tips de grabación para este Reel:
 - [consejo de edición simple]
 Buena práctica: [1 línea]""",
 
-    "✍️ Copy de Venta": """Escribe un copy de Instagram sobre "{tema}" para {nombre}, especialista en {esp}.
+    "Copy de Venta": """Escribe un copy de Instagram sobre "{tema}" para {nombre}, especialista en {esp}.
 REGLAS DE SALIDA:
 - Entrega ÚNICAMENTE el texto final listo para copiar y pegar
 - Sin etiquetas de sección visibles (no escribas "ATENCIÓN:" ni "DESEO:")
@@ -302,16 +308,22 @@ MODOS = {
     "*viral*": "\n\n[MODO VIRAL]:\n- Gancho contraintuitivo o que rompe un mito común\n- Estructura: sorpresa → desarrollo → cierre con impacto\n- Incluye 1 pregunta que invite a comentar al final\n- Tip: sugiere compartir en Stories con encuesta para amplificar",
     "*deep*": "\n\n[MODO DEEP]:\n- Tono vulnerable y reflexivo, cero ventas directas\n- Conecta con heridas emocionales reales (sin nombrarlas brutalmente)\n- Usa metáforas, preguntas de introspección o imágenes poéticas\n- Tip de grabación: luz cálida, voz pausada, mirar fijo a cámara",
 }
+
+BLOG = "Blog Completo"
+
 # ---------------------------------------------------------
-# BARRA LATERAL: ACCIONES
+# DATOS DEL PERFIL (vienen siempre del token)
 # ---------------------------------------------------------
 nombre_terapeuta = datos_terapeuta.get("nombre") or "Terapeuta"
 especialidades = datos_terapeuta.get("especialidades", "")
 servicios = datos_terapeuta.get("servicios", "")
 bio = datos_terapeuta.get("bio", "")
 
+# ---------------------------------------------------------
+# BARRA LATERAL: ACCIONES
+# ---------------------------------------------------------
 with st.sidebar:
-    st.header(f"✨ {nombre_terapeuta}")
+    st.header(nombre_terapeuta)
     if especialidades:
         st.caption(especialidades)
 
@@ -326,14 +338,14 @@ with st.sidebar:
             contenido_exportar += f"[{rol}]\n{msg['content']}\n\n" + ("-" * 40) + "\n\n"
 
         st.download_button(
-            label="📥 Descargar Guiones (.txt)",
+            label="Descargar guiones (.txt)",
             data=contenido_exportar,
             file_name=f"guiones_{nombre_terapeuta.lower().replace(' ', '_')}.txt",
             mime="text/plain",
             use_container_width=True
         )
 
-    if st.button("🗑️ Limpiar Conversación", use_container_width=True):
+    if st.button("Limpiar conversación", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
@@ -351,6 +363,7 @@ system_prompt_actualizado = BASE_PROMPT.format(
 )
 
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+
 MODELOS_PREFERIDOS = [
     "gemini-flash-latest",
     "gemini-2.5-flash",
@@ -380,15 +393,17 @@ def elegir_modelo() -> str:
 
 
 MODELO_IA = elegir_modelo()
+
+
 def generar(titulo_visible: str, mensaje: str) -> None:
     if st.session_state.consultas >= MAX_CONSULTAS:
         st.error("Llegaste al límite de consultas de esta sesión.")
         return
 
     try:
-        with st.spinner("Creando tu contenido… ✨"):
+        with st.spinner("Creando tu contenido…"):
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=MODELO_IA,
                 contents=mensaje,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt_actualizado,
@@ -397,16 +412,17 @@ def generar(titulo_visible: str, mensaje: str) -> None:
             )
         texto = response.text
     except Exception as e:
-        print(f"[Gemini] {type(e).__name__}: {e}")
+        print(f"[Gemini] {MODELO_IA} -> {type(e).__name__}: {e}")
         detalle = str(e)
         if "API_KEY" in detalle or "401" in detalle or "403" in detalle:
-            st.error("🔑 La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets.")
+            st.error("La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets.")
         elif "429" in detalle or "RESOURCE_EXHAUSTED" in detalle:
-            st.error("⏳ Se agotó la cuota de Gemini por ahora. Intenta en unos minutos.")
+            st.error("Se agotó la cuota de Gemini por ahora. Intenta en unos minutos.")
         elif "404" in detalle or "not found" in detalle.lower():
-            st.error("🤖 El modelo gemini-2.5-flash no está disponible para esta clave.")
+            elegir_modelo.clear()
+            st.error(f"El modelo {MODELO_IA} no está disponible para esta clave. Vuelve a intentarlo.")
         else:
-            st.error(f"⚠️ Error de la IA: {type(e).__name__}: {detalle[:300]}")
+            st.error(f"Error de la IA: {type(e).__name__}: {detalle[:300]}")
         return
 
     if not texto:
@@ -417,6 +433,8 @@ def generar(titulo_visible: str, mensaje: str) -> None:
     st.session_state.messages.append({"role": "user", "content": titulo_visible})
     st.session_state.messages.append({"role": "assistant", "content": texto})
     st.rerun()
+
+
 # ---------------------------------------------------------
 # INTERFAZ
 # ---------------------------------------------------------
@@ -425,7 +443,7 @@ st.markdown("Genera ideas, guiones para reels (*fast*, *viral*, *deep*), copies 
 
 tipo = st.radio(
     "¿Qué quieres crear?",
-    list(PLANTILLAS.keys()) + ["📝 Blog Completo"],
+    list(PLANTILLAS.keys()) + [BLOG],
     horizontal=True
 )
 
@@ -433,10 +451,10 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if msg["role"] == "assistant":
-            with st.expander("📋 Copiar texto"):
+            with st.expander("Copiar texto"):
                 st.code(msg["content"], language=None)
 
-if tipo == "📝 Blog Completo":
+if tipo == BLOG:
     with st.form("form_blog"):
         titulo = st.text_input("Título del artículo *")
         proposito = st.selectbox("Este artículo busca…", ["explicar", "desmitificar", "acompañar", "inspirar"])
@@ -444,7 +462,7 @@ if tipo == "📝 Blog Completo":
         mirada = st.text_input("Trabajémoslo desde una mirada de…")
         dolor = st.text_input("Escrito para quien siente…")
         tono = st.selectbox("Tono", ["profundo", "cercano", "esperanzador"])
-        enviado = st.form_submit_button("Generar blog ✨", use_container_width=True)
+        enviado = st.form_submit_button("Generar blog", use_container_width=True)
 
     if enviado:
         if not titulo.strip() or not problema.strip():
@@ -459,7 +477,7 @@ TONO: {tono}
 ─────────────────────────────────────
 Redacta el artículo completo y publicable siguiendo las Reglas de Oro de tu sistema. Incluye H1 magnético, meta descripción SEO, introducción que enganche, 3 secciones H2 desarrolladas (con viñetas si aplica), conclusión emocional y un CTA natural.
 ─────────────────────────────────────"""
-            generar(f"📝 Blog Completo: {titulo}", mensaje)
+            generar(f"{BLOG}: {titulo}", mensaje)
 else:
     if tema := st.chat_input("Escribe el tema (puedes añadir *fast*, *viral* o *deep*)..."):
         mensaje = PLANTILLAS[tipo].format(tema=tema, nombre=nombre, esp=esp)
