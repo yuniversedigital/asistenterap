@@ -409,10 +409,9 @@ def modelos_candidatos() -> list[str]:
         candidatos = [m for m in disponibles if "flash" in m and "image" not in m and "tts" not in m]
     return (candidatos or MODELOS_PREFERIDOS)[:3]
 
-
 def config_para(modelo: str) -> types.GenerateContentConfig:
     extra = {}
-    if "2.5" in modelo:
+    if "2.5" in modelo or "3.5" in modelo:
         extra["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
     return types.GenerateContentConfig(
         system_instruction=system_prompt_actualizado,
@@ -443,19 +442,20 @@ def llamar_gemini(mensaje: str) -> str:
                 )
                 print(f"[Gemini] OK {modelo} (thinking={usar_thinking}) en {time.monotonic() - t0:.1f}s")
                 return response.text or ""
-            except Exception as e:
-                ultimo_error = e
-                detalle = str(e)
-                print(f"[Gemini] {modelo} (thinking={usar_thinking}) -> {type(e).__name__}: {detalle[:300]}")
+           except Exception as e:
+    ultimo_error = e
+    detalle = str(e)
+    print(f"[Gemini] {modelo} (thinking={usar_thinking}) -> {type(e).__name__}: {detalle[:300]}")
 
-                if any(clave in detalle for clave in ERRORES_DE_CLAVE):
-                    raise
-                if usar_thinking and ("400" in detalle or "INVALID_ARGUMENT" in detalle or "thinking" in detalle.lower()):
-                    continue
-                if any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
-                    time.sleep(1.5)
-                break
-
+    if any(clave in detalle for clave in ERRORES_DE_CLAVE):
+        raise
+    if "404" in detalle or "NOT_FOUND" in detalle:
+        break
+    if usar_thinking and ("400" in detalle or "INVALID_ARGUMENT" in detalle or "thinking" in detalle.lower()):
+        continue
+    if any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
+        time.sleep(1.5)
+    break
     raise ultimo_error or RuntimeError("Sin modelos disponibles")
 
 
