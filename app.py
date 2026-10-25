@@ -351,7 +351,35 @@ system_prompt_actualizado = BASE_PROMPT.format(
 )
 
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+MODELOS_PREFERIDOS = [
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+]
 
+
+@st.cache_resource(show_spinner=False)
+def elegir_modelo() -> str:
+    disponibles = []
+    try:
+        for m in client.models.list():
+            acciones = getattr(m, "supported_actions", None) or []
+            if not acciones or "generateContent" in acciones:
+                disponibles.append(m.name.replace("models/", ""))
+    except Exception as e:
+        print(f"[Gemini] No se pudo listar modelos: {e}")
+        return MODELOS_PREFERIDOS[0]
+
+    print(f"[Gemini] Modelos disponibles: {disponibles}")
+    for preferido in MODELOS_PREFERIDOS:
+        if preferido in disponibles:
+            return preferido
+    flash = [m for m in disponibles if "flash" in m and "image" not in m and "tts" not in m]
+    return flash[0] if flash else (disponibles[0] if disponibles else MODELOS_PREFERIDOS[0])
+
+
+MODELO_IA = elegir_modelo()
 def generar(titulo_visible: str, mensaje: str) -> None:
     if st.session_state.consultas >= MAX_CONSULTAS:
         st.error("Llegaste al límite de consultas de esta sesión.")
