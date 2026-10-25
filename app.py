@@ -363,17 +363,22 @@ system_prompt_actualizado = BASE_PROMPT.format(
 )
 
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+import time
 
 MODELOS_PREFERIDOS = [
     "gemini-flash-latest",
     "gemini-2.5-flash",
     "gemini-2.0-flash",
-    "gemini-1.5-flash",
+    "gemini-flash-lite-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash-lite",
 ]
+
+ERRORES_TEMPORALES = ("503", "UNAVAILABLE", "500", "INTERNAL", "429", "RESOURCE_EXHAUSTED", "overloaded", "high demand")
 
 
 @st.cache_resource(show_spinner=False)
-def elegir_modelo() -> str:
+def modelos_candidatos() -> list[str]:
     disponibles = []
     try:
         for m in client.models.list():
@@ -382,17 +387,39 @@ def elegir_modelo() -> str:
                 disponibles.append(m.name.replace("models/", ""))
     except Exception as e:
         print(f"[Gemini] No se pudo listar modelos: {e}")
-        return MODELOS_PREFERIDOS[0]
+        return MODELOS_PREFERIDOS[:3]
 
     print(f"[Gemini] Modelos disponibles: {disponibles}")
-    for preferido in MODELOS_PREFERIDOS:
-        if preferido in disponibles:
-            return preferido
-    flash = [m for m in disponibles if "flash" in m and "image" not in m and "tts" not in m]
-    return flash[0] if flash else (disponibles[0] if disponibles else MODELOS_PREFERIDOS[0])
+    candidatos = [m for m in MODELOS_PREFERIDOS if m in disponibles]
+    if not candidatos:
+        candidatos = [m for m in disponibles if "flash" in m and "image" not in m and "tts" not in m][:3]
+    return candidatos or MODELOS_PREFERIDOS[:3]
 
 
-MODELO_IA = elegir_modelo()
+def llamar_gemini(mensaje: str) -> str:
+    ultimo_error: Exception | None = None
+    for modelo in modelos_candidatos():
+        for intento in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=modelo,
+                    contents=mensaje,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt_actualizado,
+                        temperature=0.7
+                    )
+                )
+                return response.text or ""
+            except Exception as e:
+                ultimo_error = e
+                detalle = str(e)
+                print(f"[Gemini] {modelo} intento {intento + 1} -> {type(e).__name__}: {detalle[:200]}")
+                if "404" in detalle or "not found" in detalle.lower():
+                    break
+                if not any(clave in detalle for clave in ERRORES_TEMPORALES):
+                    raise
+                time.sleep(2 * (intento + 1))
+    raise ultimo_error or RuntimeError("Sin modelos disponibles")
 
 
 def generar(titulo_visible: str, mensaje: str) -> None:
@@ -402,27 +429,15 @@ def generar(titulo_visible: str, mensaje: str) -> None:
 
     try:
         with st.spinner("Creando tu contenido…"):
-            response = client.models.generate_content(
-                model=MODELO_IA,
-                contents=mensaje,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt_actualizado,
-                    temperature=0.7
-                )
-            )
-        texto = response.text
+            texto = llamar_gemini(mensaje)
     except Exception as e:
-        print(f"[Gemini] {MODELO_IA} -> {type(e).__name__}: {e}")
         detalle = str(e)
         if "API_KEY" in detalle or "401" in detalle or "403" in detalle:
             st.error("La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets.")
-        elif "429" in detalle or "RESOURCE_EXHAUSTED" in detalle:
-            st.error("Se agotó la cuota de Gemini por ahora. Intenta en unos minutos.")
-        elif "404" in detalle or "not found" in detalle.lower():
-            elegir_modelo.clear()
-            st.error(f"El modelo {MODELO_IA} no está disponible para esta clave. Vuelve a intentarlo.")
+        elif any(clave in detalle for clave in ERRORES_TEMPORALES):
+            st.warning("La IA está con mucha demanda en este momento. Espera un minuto y vuelve a intentarlo.")
         else:
-            st.error(f"Error de la IA: {type(e).__name__}: {detalle[:300]}")
+            st.error("No se pudo generar el contenido. Intenta nuevamente.")
         return
 
     if not texto:
@@ -433,7 +448,6 @@ def generar(titulo_visible: str, mensaje: str) -> None:
     st.session_state.messages.append({"role": "user", "content": titulo_visible})
     st.session_state.messages.append({"role": "assistant", "content": texto})
     st.rerun()
-
 
 # ---------------------------------------------------------
 # INTERFAZ
