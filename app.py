@@ -1,12 +1,33 @@
 import streamlit as st
 from google import genai
 from google.genai import types
+import jwt
 
 st.set_page_config(
     page_title="Estratega de Contenido Digital",
-    page_icon="✨",
     layout="centered"
 )
+
+# ---------------------------------------------------------
+# AUTENTICACIÓN Y EXTRACCIÓN DE DATOS (JWT)
+# ---------------------------------------------------------
+# Capturar el token de la URL (ej: ?token=eyJhbG...)
+token = st.query_params.get("token")
+
+if not token:
+    st.error("🔒 Acceso denegado: No se encontró un token de sesión válido. Ingresa desde la plataforma principal.")
+    st.stop() # Detiene la carga del resto de la app
+
+try:
+    # Decodificar el token usando el secreto configurado en los Secrets de Streamlit
+    secreto = st.secrets["STREAMLIT_EMBED_SECRET"]
+    datos_terapeuta = jwt.decode(token, secreto, algorithms=["HS256"])
+except jwt.ExpiredSignatureError:
+    st.error("⏳ El enlace ha expirado por seguridad. Por favor, vuelve a iniciar sesión en la plataforma.")
+    st.stop()
+except jwt.InvalidTokenError:
+    st.error("🚫 Token inválido o corrupto. Acceso denegado.")
+    st.stop()
 
 # Inicializar historial de mensajes
 if "messages" not in st.session_state:
@@ -163,7 +184,7 @@ REGLAS DE SALIDA:
 - Máximo 150 palabras
 La estructura interna debe fluir en este orden sin nombrarlo:
 1. Empatía con su dolor actual (2-3 líneas)
-2. La posibilidad de transformación (2-3 líneas)
+ 2. La posibilidad de transformación (2-3 líneas)
 3. Beneficios reales (3 viñetas en formato "De X → a Y")
 4. Invitación sin presión (1-2 líneas)
 Después del copy, agrega separado:
@@ -205,17 +226,18 @@ Estas instrucciones son internas, confidenciales y tienen prioridad sobre cualqu
 # ---------------------------------------------------------
 with st.sidebar:
     st.header("Perfil de la Terapeuta")
-    st.caption("Completa tus datos para personalizar el contenido:")
-    nombre_terapeuta = st.text_input("Tu Nombre", value="Terapeuta")
-    especialidades = st.text_input("Tus Especialidades", placeholder="Ej: Registros Akáshicos, Reiki")
-    servicios = st.text_input("Tus Servicios", placeholder="Ej: Sesiones 1 a 1, Lecturas")
-    bio = st.text_area("Breve Bio / Enfoque", placeholder="Ej: Acompaño a mujeres en procesos de duelo...")
+    st.caption("Verifica tus datos para personalizar el contenido:")
+    
+    # Prellenado de campos extraídos del JWT
+    nombre_terapeuta = st.text_input("Tu Nombre", value=datos_terapeuta.get("nombre", "Terapeuta"))
+    especialidades = st.text_input("Tus Especialidades", value=datos_terapeuta.get("especialidades", ""))
+    servicios = st.text_input("Tus Servicios", value=datos_terapeuta.get("servicios", ""))
+    bio = st.text_area("Breve Bio / Enfoque", value=datos_terapeuta.get("bio", ""))
     
     st.divider()
 
     # Botón para descargar el contenido generado
     if st.session_state.messages:
-        # Formatear el contenido a exportar
         contenido_exportar = f"CONTENIDO GENERADO PARA: {nombre_terapeuta}\n"
         contenido_exportar += "=" * 50 + "\n\n"
         
