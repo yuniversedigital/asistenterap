@@ -437,14 +437,43 @@ def llamar_gemini(mensaje: str) -> str:
             print(f"[Gemini] OK {modelo} en {time.monotonic() - t0:.1f}s")
             return response.text or ""
         except Exception as e:
-            ultimo_error = e
-            detalle = str(e)
-            print(f"[Gemini] {modelo} -> {type(e).__name__}: {detalle[:200]}")
-            if "404" in detalle or "not found" in detalle.lower():
-                continue
-            if not any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
-                raise
-            time.sleep(1.5)
+            ultimo_error ERRORES_DE_CLAVE = ("API_KEY", "401", "403", "PERMISSION_DENIED", "UNAUTHENTICATED")
+
+
+def llamar_gemini(mensaje: str) -> str:
+    inicio = time.monotonic()
+    ultimo_error: Exception | None = None
+
+    for modelo in modelos_candidatos():
+        for usar_thinking in (True, False):
+            if time.monotonic() - inicio > TIEMPO_MAXIMO_TOTAL:
+                raise ultimo_error or RuntimeError("Tiempo de espera agotado")
+
+            config = config_para(modelo) if usar_thinking else types.GenerateContentConfig(
+                system_instruction=system_prompt_actualizado,
+                temperature=0.7,
+            )
+            try:
+                t0 = time.monotonic()
+                response = client.models.generate_content(
+                    model=modelo,
+                    contents=mensaje,
+                    config=config,
+                )
+                print(f"[Gemini] OK {modelo} (thinking_off={usar_thinking}) en {time.monotonic() - t0:.1f}s")
+                return response.text or ""
+            except Exception as e:
+                ultimo_error = e
+                detalle = str(e)
+                print(f"[Gemini] {modelo} (thinking_off={usar_thinking}) -> {type(e).__name__}: {detalle[:300]}")
+
+                if any(clave in detalle for clave in ERRORES_DE_CLAVE):
+                    raise
+                if usar_thinking and ("400" in detalle or "INVALID_ARGUMENT" in detalle or "thinking" in detalle.lower()):
+                    continue
+                if any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
+                    time.sleep(1.5)
+                break
 
     raise ultimo_error or RuntimeError("Sin modelos disponibles")
 
@@ -459,12 +488,14 @@ def generar(titulo_visible: str, mensaje: str) -> None:
             texto = llamar_gemini(mensaje)
     except Exception as e:
         detalle = str(e)
-        if "API_KEY" in detalle or "401" in detalle or "403" in detalle:
+        if any(clave in detalle for clave in ERRORES_DE_CLAVE):
             st.error("La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets.")
         elif any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
             st.warning("La IA está con mucha demanda en este momento. Espera un minuto y vuelve a intentarlo.")
         else:
             st.error("No se pudo generar el contenido. Intenta nuevamente.")
+            with st.expander("Detalle técnico"):
+                st.code(f"{type(e).__name__}: {detalle[:500]}", language=None)
         return
 
     if not texto:
@@ -475,8 +506,6 @@ def generar(titulo_visible: str, mensaje: str) -> None:
     st.session_state.messages.append({"role": "user", "content": titulo_visible})
     st.session_state.messages.append({"role": "assistant", "content": texto.strip()})
     st.rerun()
-
-
 # ---------------------------------------------------------
 # INTERFAZ
 # ---------------------------------------------------------
