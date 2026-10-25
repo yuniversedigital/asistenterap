@@ -387,6 +387,7 @@ MODELOS_PREFERIDOS = [
 
 ERRORES_TEMPORALES = ("503", "UNAVAILABLE", "500", "INTERNAL", "429", "RESOURCE_EXHAUSTED",
                       "overloaded", "high demand", "timed out", "Timeout", "deadline")
+ERRORES_DE_CLAVE = ("API_KEY", "401", "403", "PERMISSION_DENIED", "UNAUTHENTICATED")
 TIEMPO_MAXIMO_TOTAL = 90
 
 
@@ -425,26 +426,6 @@ def llamar_gemini(mensaje: str) -> str:
     ultimo_error: Exception | None = None
 
     for modelo in modelos_candidatos():
-        if time.monotonic() - inicio > TIEMPO_MAXIMO_TOTAL:
-            break
-        try:
-            t0 = time.monotonic()
-            response = client.models.generate_content(
-                model=modelo,
-                contents=mensaje,
-                config=config_para(modelo),
-            )
-            print(f"[Gemini] OK {modelo} en {time.monotonic() - t0:.1f}s")
-            return response.text or ""
-        except Exception as e:
-            ultimo_error ERRORES_DE_CLAVE = ("API_KEY", "401", "403", "PERMISSION_DENIED", "UNAUTHENTICATED")
-
-
-def llamar_gemini(mensaje: str) -> str:
-    inicio = time.monotonic()
-    ultimo_error: Exception | None = None
-
-    for modelo in modelos_candidatos():
         for usar_thinking in (True, False):
             if time.monotonic() - inicio > TIEMPO_MAXIMO_TOTAL:
                 raise ultimo_error or RuntimeError("Tiempo de espera agotado")
@@ -460,12 +441,12 @@ def llamar_gemini(mensaje: str) -> str:
                     contents=mensaje,
                     config=config,
                 )
-                print(f"[Gemini] OK {modelo} (thinking_off={usar_thinking}) en {time.monotonic() - t0:.1f}s")
+                print(f"[Gemini] OK {modelo} (thinking={usar_thinking}) en {time.monotonic() - t0:.1f}s")
                 return response.text or ""
             except Exception as e:
                 ultimo_error = e
                 detalle = str(e)
-                print(f"[Gemini] {modelo} (thinking_off={usar_thinking}) -> {type(e).__name__}: {detalle[:300]}")
+                print(f"[Gemini] {modelo} (thinking={usar_thinking}) -> {type(e).__name__}: {detalle[:300]}")
 
                 if any(clave in detalle for clave in ERRORES_DE_CLAVE):
                     raise
@@ -506,6 +487,8 @@ def generar(titulo_visible: str, mensaje: str) -> None:
     st.session_state.messages.append({"role": "user", "content": titulo_visible})
     st.session_state.messages.append({"role": "assistant", "content": texto.strip()})
     st.rerun()
+
+
 # ---------------------------------------------------------
 # INTERFAZ
 # ---------------------------------------------------------
