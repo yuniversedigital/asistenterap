@@ -56,12 +56,24 @@ Eres una estratega de contenido digital y redactora SEO especializada exclusivam
 No eres una IA genérica. Eres su socia estratégica de contenido.
 
 PERFIL DE QUIEN TE CONSULTA
+CÓMO USAR LA BIO — PERSONALIZACIÓN PROFUNDA
 ─────────────────────────────────────────────
-Nombre: {nombre_terapeuta}
-Especialidades: {especialidades}
-Servicios: {servicios}
-Bio: {bio}
+Antes de escribir, extrae de la bio (sin citarla literalmente):
+1. PÚBLICO: a quién acompaña (ej: mujeres en duelo, adolescentes, parejas).
+   → Escribe para ese público: sus dolores, su lenguaje, sus situaciones cotidianas.
+2. ENFOQUE: desde dónde trabaja (ej: lo corporal, lo energético, lo emocional, lo ancestral).
+   → Usa metáforas, ejemplos y vocabulario coherentes con ese enfoque.
+3. PROPÓSITO: qué transformación ofrece.
+   → Los CTA y cierres invitan a esa transformación concreta, no a una genérica.
+4. VOZ: cómo se expresa (cercana, poética, técnica, maternal, directa).
+   → Imita ese registro en todo el contenido.
 
+Reglas:
+- Nunca copies frases textuales de la bio ni la resumas dentro del contenido.
+- Si la bio está vacía, es genérica o habla de la plataforma (membresías, pagos, perfiles, EncuentroFácil),
+  ignórala y personaliza solo con nombre y especialidades.
+- Lo mismo con los servicios: menciona solo los que sean terapias o sesiones reales,
+  nunca membresías, planes ni productos de la plataforma.
 REGLAS DE ORO — CUMPLIMIENTO ESTRICTO
 ─────────────────────────────────────────────
 1. CERO INTRODUCCIONES
@@ -290,18 +302,18 @@ MODOS = {
     "*viral*": "\n\n[MODO VIRAL]:\n- Gancho contraintuitivo o que rompe un mito común\n- Estructura: sorpresa → desarrollo → cierre con impacto\n- Incluye 1 pregunta que invite a comentar al final\n- Tip: sugiere compartir en Stories con encuesta para amplificar",
     "*deep*": "\n\n[MODO DEEP]:\n- Tono vulnerable y reflexivo, cero ventas directas\n- Conecta con heridas emocionales reales (sin nombrarlas brutalmente)\n- Usa metáforas, preguntas de introspección o imágenes poéticas\n- Tip de grabación: luz cálida, voz pausada, mirar fijo a cámara",
 }
+# ---------------------------------------------------------
+# BARRA LATERAL: ACCIONES
+# ---------------------------------------------------------
+nombre_terapeuta = datos_terapeuta.get("nombre") or "Terapeuta"
+especialidades = datos_terapeuta.get("especialidades", "")
+servicios = datos_terapeuta.get("servicios", "")
+bio = datos_terapeuta.get("bio", "")
 
-# ---------------------------------------------------------
-# BARRA LATERAL: DATOS Y ACCIONES
-# ---------------------------------------------------------
 with st.sidebar:
-    st.header("Perfil de la Terapeuta")
-    st.caption("Verifica tus datos para personalizar el contenido:")
-
-    nombre_terapeuta = st.text_input("Tu Nombre", value=datos_terapeuta.get("nombre") or "Terapeuta")
-    especialidades = st.text_input("Tus Especialidades", value=datos_terapeuta.get("especialidades", ""))
-    servicios = st.text_input("Tus Servicios", value=datos_terapeuta.get("servicios", ""))
-    bio = st.text_area("Breve Bio / Enfoque", value=datos_terapeuta.get("bio", ""))
+    st.header(f"✨ {nombre_terapeuta}")
+    if especialidades:
+        st.caption(especialidades)
 
     st.divider()
     st.caption(f"Consultas usadas: {st.session_state.consultas}/{MAX_CONSULTAS}")
