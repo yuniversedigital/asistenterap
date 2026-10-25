@@ -378,11 +378,11 @@ client = genai.Client(
 # MODELOS Y LLAMADA A GEMINI
 # ---------------------------------------------------------
 MODELOS_PREFERIDOS = [
-    "gemini-2.5-flash",
+    "gemini-3.5-flash",
     "gemini-flash-latest",
+    "gemini-3.5-flash-lite",
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-flash-lite-latest",
 ]
 
 ERRORES_TEMPORALES = ("503", "UNAVAILABLE", "500", "INTERNAL", "429", "RESOURCE_EXHAUSTED",
