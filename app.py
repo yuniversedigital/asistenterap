@@ -7,34 +7,40 @@ from google.genai import types
 
 st.set_page_config(
     page_title="Estratega de Contenido Digital",
-    layout="centered"
+    layout="centered",
 )
 
 MAX_CONSULTAS = 20
+PERFIL_PUBLICO = {
+    "nombre": "Terapeuta",
+    "especialidades": "terapias holísticas",
+    "servicios": "sesiones individuales",
+    "bio": "",
+}
+
+
+def secreto_embed():
+    try:
+        return str(st.secrets["STREAMLIT_EMBED_SECRET"] or "")
+    except Exception:
+        return ""
+
 
 if "perfil" not in st.session_state:
     token = st.query_params.get("t") or st.query_params.get("token")
-
-    if not token:
-        st.error("Acceso denegado: no se encontró un token de sesión. Ingresa desde la plataforma principal.")
-        st.stop()
-
-    try:
-        st.session_state.perfil = jwt.decode(
-            token,
-            st.secrets["STREAMLIT_EMBED_SECRET"],
-            algorithms=["HS256"],
-            audience="estratega-streamlit",
-        )
-    except jwt.ExpiredSignatureError:
-        st.error("El enlace expiró por seguridad. Pulsa «Recargar» en tu panel.")
-        st.stop()
-    except jwt.InvalidAudienceError:
-        st.error("Token emitido para otra aplicación.")
-        st.stop()
-    except jwt.InvalidTokenError:
-        st.error("Token inválido. Revisa que STREAMLIT_EMBED_SECRET sea igual en Streamlit y en el backend.")
-        st.stop()
+    perfil = dict(PERFIL_PUBLICO)
+    secreto = secreto_embed()
+    if token and secreto:
+        try:
+            perfil = jwt.decode(
+                token,
+                secreto,
+                algorithms=["HS256"],
+                audience="estratega-streamlit",
+            )
+        except jwt.InvalidTokenError:
+            perfil = dict(PERFIL_PUBLICO)
+    st.session_state.perfil = perfil
 
 datos_terapeuta = st.session_state.perfil
 
@@ -283,8 +289,7 @@ Al final agrega:
 —
 Buena práctica de la semana: [1 tip concreto sobre presencia digital]
 (Esta es la ÚNICA línea de buena práctica. No agregues otra después.)""",
-
-      "Guion para Reel": """Escribe un guion de 60 segundos sobre "{tema}" para {nombre}, especialista en {esp}.
+    "Guion para Reel": """Escribe un guion de 60 segundos sobre "{tema}" para {nombre}, especialista en {esp}.
 VOZ: primera persona, como si {nombre} hablara a cámara al espectador (tú). Nunca describas a {nombre} en tercera persona.
 GANCHO (0–3 seg)
 
@@ -305,7 +310,6 @@ Tips de grabación para este Reel:
 - [consejo de edición simple]
 Buena práctica: [1 línea]
 (Esta es la ÚNICA línea de buena práctica. No agregues otra después.)""",
-
     "Copy de Venta": """Escribe un copy de Instagram sobre "{tema}" para {nombre}, especialista en {esp}.
 REGLAS DE SALIDA:
 - Entrega ÚNICAMENTE el texto final listo para copiar y pegar
@@ -358,7 +362,7 @@ with st.sidebar:
             data=contenido_exportar,
             file_name=f"guiones_{nombre_terapeuta.lower().replace(' ', '_')}.txt",
             mime="text/plain",
-            use_container_width=True
+            use_container_width=True,
         )
 
     if st.button("Limpiar conversación", use_container_width=True):
@@ -372,7 +376,7 @@ system_prompt_actualizado = BASE_PROMPT.format(
     nombre_terapeuta=nombre,
     especialidades=esp,
     servicios=servicios or "sesiones individuales",
-    bio=bio or "acompañamiento integral"
+    bio=bio or "acompañamiento integral",
 )
 
 client = genai.Client(
@@ -389,8 +393,17 @@ MODELOS_PREFERIDOS = [
 ]
 
 ERRORES_TEMPORALES = (
-    "503", "UNAVAILABLE", "500", "INTERNAL", "429", "RESOURCE_EXHAUSTED",
-    "overloaded", "high demand", "timed out", "Timeout", "deadline",
+    "503",
+    "UNAVAILABLE",
+    "500",
+    "INTERNAL",
+    "429",
+    "RESOURCE_EXHAUSTED",
+    "overloaded",
+    "high demand",
+    "timed out",
+    "Timeout",
+    "deadline",
 )
 ERRORES_DE_CLAVE = ("API_KEY", "401", "403", "PERMISSION_DENIED", "UNAUTHENTICATED")
 TIEMPO_MAXIMO_TOTAL = 90
@@ -411,7 +424,11 @@ def modelos_candidatos():
     print("[Gemini] Modelos disponibles:", disponibles)
     candidatos = [m for m in MODELOS_PREFERIDOS if m in disponibles]
     if not candidatos:
-        candidatos = [m for m in disponibles if "flash" in m and "image" not in m and "tts" not in m and "lite" not in m]
+        candidatos = [
+            m
+            for m in disponibles
+            if "flash" in m and "image" not in m and "tts" not in m and "lite" not in m
+        ]
     return (candidatos or MODELOS_PREFERIDOS)[:3]
 
 
@@ -460,7 +477,11 @@ def llamar_gemini(mensaje):
                     raise
                 if "404" in detalle or "NOT_FOUND" in detalle:
                     break
-                if usar_thinking and ("400" in detalle or "INVALID_ARGUMENT" in detalle or "thinking" in detalle.lower()):
+                if usar_thinking and (
+                    "400" in detalle
+                    or "INVALID_ARGUMENT" in detalle
+                    or "thinking" in detalle.lower()
+                ):
                     continue
                 if any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
                     time.sleep(1.5)
@@ -480,9 +501,13 @@ def generar(titulo_visible, mensaje):
     except Exception as e:
         detalle = str(e)
         if any(clave in detalle for clave in ERRORES_DE_CLAVE):
-            st.error("La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets.")
+            st.error(
+                "La clave de Gemini no es válida o no tiene permisos. Revisa GEMINI_API_KEY en los Secrets."
+            )
         elif any(clave.lower() in detalle.lower() for clave in ERRORES_TEMPORALES):
-            st.warning("La IA está con mucha demanda en este momento. Espera un minuto y vuelve a intentarlo.")
+            st.warning(
+                "La IA está con mucha demanda en este momento. Espera un minuto y vuelve a intentarlo."
+            )
         else:
             st.error("No se pudo generar el contenido. Intenta nuevamente.")
             with st.expander("Detalle técnico"):
@@ -500,12 +525,14 @@ def generar(titulo_visible, mensaje):
 
 
 st.title("Estratega de Contenido")
-st.markdown("Genera ideas, guiones para reels (*fast*, *viral*, *deep*), copies para Instagram y blogs SEO.")
+st.markdown(
+    "Genera ideas, guiones para reels (*fast*, *viral*, *deep*), copies para Instagram y blogs SEO."
+)
 
 tipo = st.radio(
     "¿Qué quieres crear?",
     list(PLANTILLAS.keys()) + [BLOG],
-    horizontal=True
+    horizontal=True,
 )
 
 for msg in st.session_state.messages:
@@ -518,7 +545,9 @@ for msg in st.session_state.messages:
 if tipo == BLOG:
     with st.form("form_blog"):
         titulo = st.text_input("Título del artículo *")
-        proposito = st.selectbox("Este artículo busca…", ["explicar", "desmitificar", "acompañar", "inspirar"])
+        proposito = st.selectbox(
+            "Este artículo busca…", ["explicar", "desmitificar", "acompañar", "inspirar"]
+        )
         problema = st.text_input("Problema central *")
         mirada = st.text_input("Trabajémoslo desde una mirada de…")
         dolor = st.text_input("Escrito para quien siente…")
